@@ -48,3 +48,12 @@
 :root[data-theme=light] #pointsMessage{color:#8a4600}
 /* A narrow dark edge keeps light cue hues readable without recoloring them. */
 :root[data-theme=light] #clock{filter:drop-shadow(1px 0 0 #222) drop-shadow(-1px 0 0 #222) drop-shadow(0 1px 0 #222) drop-shadow(0 -1px 0 #222)}
+
+
+/* Finish-sound controls retain the compact, touch-friendly menu layout. */
+.end-sound-choice{display:grid;gap:6px;font-size:13px;padding:2px 8px 6px}
+#endSoundType{width:100%;min-width:0;min-height:44px;padding:8px;border:1px solid #555;border-radius:9px;background:#242424;color:#fff;font:inherit;font-size:16px}
+#endSoundMessage{display:block;padding:0 8px;font-size:12px;color:#ffd166;line-height:1.5}
+#endSoundMessage:empty{display:none}
+:root[data-theme=light] #endSoundType{background:#eee;color:#111;border-color:#888}
+:root[data-theme=light] #endSoundMessage{color:#8a4600}
