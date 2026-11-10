@@ -18,7 +18,7 @@ export function stopWatch(w,now){return w.running?{...w,elapsed:watchElapsed(w,n
 export function formatMillis(ms,centiseconds=false,countdown=false){const units=Math.max(0,(countdown?Math.ceil:Math.floor)(ms/(centiseconds?10:1000)));const totalSeconds=centiseconds?Math.floor(units/100):units,m=Math.floor(totalSeconds/60),s=totalSeconds%60;if(!centiseconds)return`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;return`${m?m+':'+String(s).padStart(2,'0'):s}.${String(units%100).padStart(2,'0')}`;}
 
 export function setRate(t,rate,now){if(![.9,1,1.1].includes(rate))return t;const ms=remaining(t,now);return{...t,rate,remaining:ms,rateAnchor:now,deadline:t.running?now+ms/rate:null};}
-export function hideDigits(t,now,enabled,after,before,started){const from=after*60000,to=t.configured-before*60000;return Boolean(enabled&&started&&from<to&&t.configured>0&&t.configured-remaining(t,now)>=from&&t.configured-remaining(t,now)<to);}
+export function hideDigits(t,now,enabled,after,before,started,afterSeconds=0,beforeSeconds=0){const from=after*60000+afterSeconds*1000,to=t.configured-before*60000-beforeSeconds*1000;return Boolean(enabled&&started&&from<to&&t.configured>0&&t.configured-remaining(t,now)>=from&&t.configured-remaining(t,now)<to);}
 
 export function setWatchRate(w,rate,now){if(![.9,1,1.1].includes(rate))return w;return{...w,rate,elapsed:watchElapsed(w,now),anchor:w.running?now:null};}
 
@@ -30,3 +30,4 @@ export function adjustRemaining(t,seconds,now){
  const running=current.running&&next>0;
  return{...current,configured:elapsed+next,remaining:next,running,rate:current.rate||1,rateAnchor:now,deadline:running?now+next/(current.rate||1):null};
 }
+
