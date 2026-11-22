@@ -1,0 +1,83 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ノート見本 | ズル吉 さっとノート</title><link rel="stylesheet" href="sample.css?v=23"><style id="samplePrint"></style></head>
+<body>
+<header><div class="brand">ズル吉 さっとノート</div><div class="headrow"><div><h1>ノート見本</h1><p id="sampleTitle">選んだノートに、書き方の見本をつくる。</p></div><a href="./">ノート選びに戻る</a></div></header>
+<section id="empty" hidden><p>まだ用紙が選ばれていません。「ノート選びに戻る」から用紙を選び、「ノート見本を作る」を押してください。</p></section>
+<main id="editor" hidden>
+<div class="sidebar">
+  <section aria-label="道具">
+    <h2>道具</h2>
+    <div class="tools" id="tools" role="group" aria-label="編集モード">
+      <button type="button" data-tool="select" aria-pressed="false">選択・移動</button><button type="button" data-tool="text" aria-pressed="true">文字</button><button type="button" data-tool="line" aria-pressed="false">直線</button><button type="button" data-tool="ink" aria-pressed="false">ペン</button><button type="button" data-tool="erase" aria-pressed="false">消しゴム</button><button type="button" data-tool="rect" aria-pressed="false">四角</button><button type="button" data-tool="ellipse" aria-pressed="false">丸</button><button type="button" data-tool="image" aria-pressed="false">画像</button><button type="button" data-tool="pan" aria-pressed="false">スクロール</button>
+    </div>
+    <div id="fieldTools" class="buttons" role="group" aria-label="用紙の欄に合わせる" hidden>
+      <button data-field="ruby" type="button" aria-pressed="false" hidden>よみがな</button>
+      <button data-field="date" type="button" aria-pressed="false" hidden>日付</button>
+      <button data-field="body" type="button" aria-pressed="false" hidden>れんらく（縦書き）</button>
+    </div>
+    <div id="alignedControls" hidden>
+      <label id="fieldTextLabel"><span id="fieldTextTitle">よみがな</span><textarea id="fieldText" rows="2" maxlength="80"></textarea></label>
+      <label id="fieldDateLabel" hidden>書き込む日付<input id="fieldDate" type="date"></label>
+    </div>
+    <div id="textControls">
+      <label>入れたい文字<textarea id="words" rows="3" maxlength="400" placeholder="例：きょうのめあて"></textarea></label>
+      <label>文字の向き<select id="direction"><option value="auto">用紙に合わせる</option><option value="horizontal">横書き</option><option value="vertical">縦書き</option></select></label>
+      <label class="check"><input type="checkbox" id="snap" checked>マスに1文字ずつ合わせる</label>
+      <div id="spacingControls" class="spacing-controls">
+        <label>字間（%）<input id="letterSpace" type="number" min="-15" max="100" step="5" value="0" inputmode="numeric"></label>
+        <label>行間（%）<input id="lineSpace" type="number" min="70" max="300" step="5" value="125" inputmode="numeric"></label>
+        <button id="resetSpace" type="button">標準に戻す</button>
+      </div>
+      <button type="button" id="updateText" hidden>選んだ文字に反映</button>
+    </div>
+    <div id="imageControls" hidden><label class="fileLabel">画像ファイルを選ぶ<input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label><p>画像をコピーして貼り付けても使えます。</p></div>
+    <fieldset id="fontControls" class="font-controls">
+      <legend>フォント</legend>
+      <label class="sr-only" for="fontChoice">フォント</label>
+      <select id="fontChoice">
+        <option value="klee">教科書体に近い（Klee One）</option>
+        <option value="school">端末の教科書体を優先</option>
+        <option value="standard">標準（ゴシック）</option>
+        <option value="mincho">明朝体</option>
+        <option value="manual">端末のフォント名を入力</option>
+      </select>
+      <label id="localNameLabel" hidden>端末のフォント名
+        <input id="localFontName" type="text" maxlength="120" placeholder="例：UD デジタル 教科書体 N-R">
+      </label>
+      <button type="button" id="listLocalFonts">端末のフォントを一覧から選ぶ</button>
+      <p class="small">端末のフォントは、同じ名前の書体がある場合に使えます。</p>
+    </fieldset>
+    <div class="pair"><label id="colorLabel">色<input id="color" type="color" value="#194b81"></label><label id="sizeLabel"><span id="sizeText">文字サイズ（自由配置）</span><input id="size" type="number" min="1" max="25" step=".5" value="5"></label></div>
+    <div id="imageEdit" hidden><label>画像の幅（mm）<input id="imageWidth" type="number" min="5" step="1"></label></div>
+    <div id="eraserModes" class="buttons" role="group" aria-label="消す対象" hidden>
+      <button type="button" data-erase-mode="ink" aria-pressed="true">部分消し</button>
+      <button type="button" data-erase-mode="object" aria-pressed="false">文字</button>
+    </div>
+    <label id="eraserSizeLabel" hidden>消しゴムの大きさ<select id="eraserSize"><option value="2">小</option><option value="4" selected>中</option><option value="8">大</option></select></label>
+    <p id="instructions" class="tip"></p>
+  </section>
+  <section aria-label="操作と保存">
+    <h2>操作と保存</h2>
+    <div class="buttons"><button type="button" class="main-action" id="print">見本を印刷</button><button type="button" id="savePng">PNGで保存</button></div>
+    <p class="small">画像・文字は外部に送信しません。編集内容はこのタブ内に残ります。<br><a href="fonts/OFL-Klee-One.txt" target="_blank" rel="noopener">Klee One のライセンス</a></p>
+  </section>
+</div>
+<section class="preview" aria-label="用紙プレビュー">
+  <div class="preview-head"><h2>プレビュー</h2><div class="history-controls" role="group" aria-label="編集履歴"><button type="button" id="undo" disabled>↶ ひとつ戻す</button><button type="button" id="redo" disabled>↷ やり直す</button></div><label>表示倍率<select id="zoom"><option value="1">全体</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label></div>
+  <p id="status" role="status" class="tip"></p>
+  <div id="selectionControls" class="selection-controls" role="group" aria-label="選んだものの編集" hidden>
+    <div id="resizeControls" class="size-controls" hidden>
+      <button id="sizeDown" type="button" aria-label="文字を小さく">A−</button>
+      <button id="sizeUp" type="button" aria-label="文字を大きく">A＋</button>
+      <span>枠の右下をドラッグでも調整</span>
+    </div>
+    <div id="angleControls" class="angle-controls" hidden>
+      <label class="angle-slider">文字の角度<input id="angleRange" type="range" min="-180" max="180" step="1" value="0"></label>
+      <label class="angle-degree">角度（°）<input id="angleNumber" type="number" min="-180" max="180" step="1" value="0" inputmode="numeric"></label>
+      <button type="button" id="resetAngle">0°に戻す</button>
+    </div>
+    <button type="button" id="moveByTap" aria-pressed="false" hidden>タップで移動</button>
+    <button type="button" id="remove">選択したものを削除</button>
+  </div>
+  <div id="viewport"><div id="canvas" tabindex="0" aria-label="ノートの編集領域"></div></div>
+</section>
+</main><div id="printSheets"></div><script src="sample-model.js?v=23"></script><script src="sample.js?v=23"></script></body></html>
