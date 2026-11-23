@@ -31,12 +31,47 @@ for(const elem of [svg,...svg.querySelectorAll('*')]){
   for(const a of [...elem.attributes])if(a.localName==='href'||/^on/i.test(a.name)||a.name==='style'||/url\(/i.test(a.value))elem.removeAttributeNode(a);
 }
 svg.setAttribute('aria-label','ノートの編集用プレビュー');
-const layer=node('g',{'data-edit-layer':''}),selection=node('g',{class:'selection'});const eraseCursor=node('circle',{fill:'none',stroke:'#2671a0','stroke-width':'.45','stroke-dasharray':'1.2 .8','pointer-events':'none','data-erase-guide':'',visibility:'hidden'});svg.append(layer,selection,eraseCursor);$('canvas').append(svg);
+const layer=node('g',{'data-edit-layer':''}),gapLayer=node('g',{'data-gap-guides':'','pointer-events':'none'}),selection=node('g',{class:'selection'});const eraseCursor=node('circle',{fill:'none',stroke:'#2671a0','stroke-width':'.45','stroke-dasharray':'1.2 .8','pointer-events':'none','data-erase-guide':'',visibility:'hidden'});svg.append(gapLayer,layer,selection,eraseCursor);$('canvas').append(svg);
 $('sampleTitle').textContent=paper.title+' ｜ 選んだ用紙を背景に編集できます。';
 $('samplePrint').textContent=`@page{size:${w}mm ${h}mm;margin:0}`;
 $('editor').hidden=false;
 const allowedImages=new Set(['image/png','image/jpeg','image/webp','image/gif']);
 let items=Array.isArray(savedItems)?savedItems:[],past=[],future=[],selected=null,tool='text',drag=null,tap=null,pending=null,dirty=false,anglePreview=null,moveByTap=false,eraseMode='ink';
+const canMarkGaps=paper.regions.some(r=>r.cell>=4);
+$('tools').querySelector('[data-tool=gap]').hidden=!canMarkGaps;
+const gapCache=new WeakMap();
+function gapList(list=items){return list.filter(i=>i.type==='gap');}
+function textGridLayout(i,gaps){
+  const target=M.textTarget(paper.regions,i);
+  if(!target)return null;
+  const region=paper.regions[target.i];
+  return {region,...M.glyphs(region,target.c,target.row,i.text,i.dir,gaps)};
+}
+function drawGap(g,draft=false){
+  let path=gapCache.get(g);
+  if(path===undefined){path=M.gapPath(paper.regions,g);gapCache.set(g,path);}
+  if(path)return node('path',{d:path,class:draft?'gap-mark gap-draft':'gap-mark'});
+  return null;
+}
+function addOrRemoveGap(d,p,tapped){
+  if(tapped){
+    const previous=gapList().findLast(g=>M.gapContains(g,p.x,p.y));
+    if(previous){commit(items.filter(i=>i.id!==previous.id));say('空ける指定を解除しました。');return;}
+  }
+  const gap={id:nextId(),type:'gap',...M.gapBounds(paper.regions,d.p,p)};
+  if(!M.gapPath(paper.regions,gap)){render();say('文字を入れられるマスを選んでください。');return;}
+  const gaps=gapList(),next=[...gaps,gap];
+  const texts=items.filter(i=>i.type==='text'&&i.snap);
+  const before=texts.map(i=>textGridLayout(i,gaps));
+  const after=texts.map(i=>textGridLayout(i,next));
+  if(after.some((l,n)=>l&&!l.points.length&&before[n]?.points.length)){
+    render();say('文字がすべて入らなくなるため、もう少し小さい範囲を選んでください。');return;
+  }
+  commit([...items,gap]);
+  say(after.some((l,n)=>l?.clipped&&!before[n]?.clipped)?
+    '空けるマスを指定しました。入りきらない文字があるので、置く位置を変えるか「ひとつ戻す」で調整してください。':
+    '空けるマスを指定しました。色は印刷・画像に出ません。');
+}
 const nextId=()=>crypto.randomUUID?.()||String(Math.random()).slice(2);
 function persist(){
   try{sessionStorage.setItem(draftKey,JSON.stringify({paper,items}));dirty=false;}
@@ -47,7 +82,7 @@ function commit(newItems){
 }
 function replay(from,to){
   if(!from.length)return;
-  anglePreview=null;moveByTap=false;drag=null;tap=null;to.push(items);items=from.pop();selected=null;sync();render();persist();
+  anglePreview=null;moveByTap=false;drag=null;tap=null;to.push(items);items=from.pop();selected=null;say('');sync();render();persist();
 }
 function info(){
   return {
@@ -55,6 +90,7 @@ function info(){
     ruby:'よみがなを入力し、大きな漢字マスをタップ。右側の細い欄に入ります。',
     date:'日付を選び、書きたい日の月・日・曜日の欄をタップします。',
     body:'れんらくの内容を書き、用紙の本文欄をタップ。選んだ列に縦書きで入ります。',
+    gap:'文字を入れたくないマスをドラッグで囲みます。1マスだけならタップ、色の付いたマスをタップすると指定を解除。対象は「マスに1文字ずつ合わせる」の文字です。',
     pan:'用紙には書き込まず、スクロールできます。',
     select:'文字をドラッグするか、選んで「タップで移動」。用紙をスクロールするときは「スクロール」を選びます。',
     erase:eraseMode==='ink'?'ペンの線や図形の輪郭で、消したい部分だけをなぞります。':'消したい文字をクリック・タップすると、ひとまとまりずつ消せます。',
@@ -218,9 +254,9 @@ function markNode(i,p,font,cell,char){
 function paint(i){
   const g=node('g',{'data-item':i.id,...(M.erasableObject(i)?{'data-erase-object':''}:{})});let bbox;
   if(i.type==='text'){
-    const target=M.textTarget(paper.regions,i);
-    if(target){
-      const r=paper.regions[target.i],{points,clipped}=M.glyphs(r,target.c,target.row,i.text,i.dir);
+    const layout=textGridLayout(i,gapList());
+    if(layout){
+      const {region:r,points,clipped}=layout;
       const font=r.cell*.71*(i.cellScale||1),radius=font*.64;
       for(const p of points){
         const mark=markNode(i,p,font,r.cell,p.char);
@@ -287,11 +323,18 @@ function paint(i){
   return {g,bbox,transform};
 }
 function render(){
-  layer.replaceChildren();selection.replaceChildren();
+  layer.replaceChildren();selection.replaceChildren();gapLayer.replaceChildren();
+  for(const g of gapList()){
+    const path=drawGap(g);if(path)gapLayer.append(path);
+  }
+  if(drag?.kind==='gap'){
+    const path=drawGap(drag.draft,true);if(path)gapLayer.append(path);
+  }
   const draft=drag&&['move','resize'].includes(drag.kind)?drag.draft:anglePreview;
   const base=drag?.kind==='erase'?drag.items:items;
   const list=draft?base.map(i=>i.id===draft.id?draft:i):base;
   for(const i of list){
+    if(i.type==='gap')continue;
     const {g,bbox:b,transform}=paint(i);layer.append(g);
     if(i.id===selected&&b){
       const frame=node('g',transform?{transform}:{});
@@ -318,8 +361,11 @@ function newText(p,id=nextId()){
   const item={id,type:'text',...p,text,color:$('color').value,size:textSize,dir:$('direction').value,snap:$('snap').checked,letterSpace:defaultLetter,lineSpace:defaultLine,font:defaultFont,localFontName:defaultLocalName};
   const at=M.textTarget(paper.regions,item);
   if(!at)item.snap=false;
-  if(at&&M.glyphs(paper.regions[at.i],at.c,at.row,item.text,item.dir).clipped)say('残りのマスに入らない文字があります。置く場所を変えるか、文を分けてください。');
-  else say('');
+  const layout=at&&textGridLayout(item,gapList());
+  if(layout?.clipped){
+    say('残りのマスに入らない文字があります。置く場所を変えるか、文を分けてください。');
+    if(!layout.points.length)return;
+  }else say('');
   return item;
 }
 function placeField(p){
@@ -365,6 +411,10 @@ svg.addEventListener('pointerdown',e=>{
     return;
   }
   e.preventDefault();$('canvas').focus({preventScroll:true});
+  if(tool==='gap'){
+    drag={kind:'gap',p,pid:e.pointerId,x:e.clientX,y:e.clientY,draft:M.gapBounds(paper.regions,p,p)};
+    svg.setPointerCapture(e.pointerId);render();return;
+  }
   if(tool==='erase'){
     if(eraseMode==='object'){
       const id=e.target.closest('[data-erase-object]')?.dataset.item;
@@ -438,6 +488,7 @@ svg.addEventListener('pointermove',e=>{
   }
   if(!drag||drag.pid!==e.pointerId)return;
   const p=point(e),dx=p.x-drag.p.x,dy=p.y-drag.p.y;
+  if(drag.kind==='gap'){drag.draft=M.gapBounds(paper.regions,drag.p,p);render();return;}
   if(drag.kind==='ink'){sampleInk(e);return;}
   if(drag.kind==='resize'){drag.draft=resizeDraft(drag,p);render();return;}
   if(drag.kind==='shape')drag.draft={...drag.draft,x2:p.x,y2:p.y};
@@ -495,6 +546,9 @@ svg.addEventListener('pointerup',e=>{
   if(drag.kind==='ink')sampleInk(e,true);
   if(drag.kind==='erase')eraseTo(point(e));
   const d=drag;drag=null;
+  if(d.kind==='gap'){
+    addOrRemoveGap(d,point(e),Math.hypot(d.x-e.clientX,d.y-e.clientY)<5);return;
+  }
   if(d.kind==='erase'){
     if(e.pointerType!=='mouse')eraseCursor.setAttribute('visibility','hidden');
     if(d.changed){commit(d.items);say('なぞった部分を消しました。');}
@@ -517,6 +571,8 @@ svg.addEventListener('pointerup',e=>{
     }
     const a=d.orig.type==='ink'?d.orig.points[0]:d.orig,b=d.orig.type==='ink'?d.draft.points[0]:d.draft;
     if(Math.hypot(a.x-b.x,a.y-b.y)>.2){
+      const layout=d.draft.type==='text'&&textGridLayout(d.draft,gapList());
+      if(layout?.clipped&&!layout.points.length){render();say('移動先に文字を入れられるマスがありません。');readSelection();return;}
       commit(items.map(i=>i.id===selected?d.draft:i));
       if(layer.querySelector('[data-clipped=true]'))say('残りのマスに入らない文字があります。');
     }else render();
@@ -615,7 +671,7 @@ document.addEventListener('keydown',e=>{
 });
 $('zoom').onchange=()=>{$('canvas').style.width=(Number($('zoom').value)*100)+'%';};
 function exportSvg(){
-  const copy=svg.cloneNode(true);copy.querySelector('.selection')?.remove();copy.querySelector('[data-erase-guide]')?.remove();copy.removeAttribute('data-tool');return copy;
+  const copy=svg.cloneNode(true);copy.querySelector('.selection')?.remove();copy.querySelector('[data-erase-guide]')?.remove();copy.querySelector('[data-gap-guides]')?.remove();copy.removeAttribute('data-tool');return copy;
 }
 $('print').onclick=async()=>{
   await document.fonts.ready;

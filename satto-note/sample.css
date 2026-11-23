@@ -58,3 +58,9 @@
 .font-controls button{margin-top:7px;min-height:36px}
 .font-controls .small{font-size:.75rem;margin-bottom:0}
 .sr-only{position:absolute;clip-path:inset(50%);overflow:hidden;width:1px;height:1px;white-space:nowrap}
+
+/* Editing guides are a separate SVG layer, removed before printing/export. */
+.gap-tool{grid-column:1/-1;min-height:40px;color:#72511e}
+.gap-mark{fill:#e4a43d;fill-opacity:.26;stroke:#a66313;stroke-width:.22}
+.gap-draft{fill:#e4a43d;fill-opacity:.46;stroke:#774701;stroke-width:.3}
+@media(any-pointer:coarse){.gap-tool{min-height:44px}}

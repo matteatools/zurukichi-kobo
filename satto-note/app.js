@@ -199,7 +199,7 @@ $('openSample').onclick=()=>{
   const key='satto-sample-launch-v1';
   try {
     sessionStorage.setItem(key,JSON.stringify(payload));
-    const tab=window.open('sample.html?v=23','_blank');
+    const tab=window.open('sample.html?v=24','_blank');
     sessionStorage.removeItem(key);
     $('sampleStatus').textContent=tab?'別のタブで見本を編集できます。':'別タブがブロックされました。このサイトのポップアップを許可して、もう一度押してください。';
   }catch {

@@ -38,10 +38,49 @@
     if(ch==='ー')return edge(0,0,vertical?90:0,.76,.76);
     return null;
   }
-  function glyphs(r,c,row,text,dir){
+  function gapContains(g,x,y){return x>=g.x&&x<=g.x2&&y>=g.y&&y<=g.y2;}
+  function cellCenter(r,c,row){return world(r,r.x+c*r.pitch+r.cell/2,r.y+row*r.cell+r.cell/2);}
+  function cellBox(r,c,row){
+    const p=cellCenter(r,c,row),s=r.cell/2;
+    return {x:p.x-s,y:p.y-s,x2:p.x+s,y2:p.y+s};
+  }
+  function gapBounds(regions,a,b){
+    const box=p=>{
+      const at=hit(regions,p.x,p.y);
+      return at?cellBox(regions[at.i],at.c,at.row):{x:p.x,y:p.y,x2:p.x,y2:p.y};
+    };
+    const u=box(a),v=box(b);
+    return {x:Math.min(u.x,v.x),y:Math.min(u.y,v.y),x2:Math.max(u.x2,v.x2),y2:Math.max(u.y2,v.y2)};
+  }
+  function gapPath(regions,g){
+    const paths=[];
+    for(const r of regions){
+      if(r.cell<4)continue;
+      for(let c=0;c<r.cols;c++)for(let row=0;row<r.rows;row++){
+        const p=cellCenter(r,c,row);
+        if(gapContains(g,p.x,p.y)){
+          const s=r.cell;
+          paths.push(`M${p.x-s/2} ${p.y-s/2}h${s}v${s}h-${s}z`);
+        }
+      }
+    }
+    return paths.join(' ');
+  }
+  function glyphs(r,c,row,text,dir,gaps=[]){
     const vertical=dir==='vertical'||(dir==='auto'&&r.vertical),startC=c,startR=row,points=[];
     const letters=chars(text.replace(/\r\n?/g,'\n'));
     const point=(char,c,row,markMode='')=>({char,...world(r,r.x+c*r.pitch+r.cell/2,r.y+row*r.cell+r.cell/2),rotate:r.rotate,vertical,...(markMode?{markMode}:{})});
+    const blocked=(c,row)=>{
+      if(!gaps.length)return false;
+      const p=cellCenter(r,c,row);
+      return gaps.some(g=>gapContains(g,p.x,p.y));
+    };
+    const wrap=()=>{
+      if(vertical&&row>=r.rows){row=0;c--;}
+      if(!vertical&&c>=r.cols){c=0;row++;}
+    };
+    const inGrid=()=>c>=0&&row>=0&&c<r.cols&&row<r.rows;
+    const advance=()=>{if(vertical)row++;else c++;};
     let clipped=false;
     for(let n=0;n<letters.length;n++){
       const char=letters[n],next=letters[n+1];
@@ -52,15 +91,15 @@
       const lineEnd=vertical?row>=r.rows:c>=r.cols;
       const lineExists=vertical?c>=0&&c<r.cols:row>=0&&row<r.rows;
       const pair=r.manuscript&&char==='。'&&next&&closing.includes(next);
-      if(r.manuscript&&lineEnd&&lineExists&&(punctuation.includes(char)||closing.includes(char))){
+      if(r.manuscript&&lineEnd&&lineExists&&!blocked(vertical?c:r.cols-1,vertical?r.rows-1:row)&&(punctuation.includes(char)||closing.includes(char))){
         const lastC=vertical?c:r.cols-1,lastRow=vertical?r.rows-1:row;
         points.push(point(char,lastC,lastRow,'hanging'));
         if(pair){points.push(point(next,lastC,lastRow,'hanging-pair'));n++;}
         continue;
       }
-      if(vertical&&row>=r.rows){row=0;c--;}
-      if(!vertical&&c>=r.cols){c=0;row++;}
-      if(c<0||row<0||c>=r.cols||row>=r.rows){clipped=true;break;}
+      wrap();
+      while(inGrid()&&blocked(c,row)){advance();wrap();}
+      if(!inGrid()){clipped=true;break;}
       points.push(point(char,c,row));
       if(pair){points.push(point(next,c,row,'paired'));n++;}
       if(vertical)row++;else c++;
@@ -273,7 +312,7 @@
     const f=fontKey(preset),name=fontName(value);
     return name?JSON.stringify(name)+','+fontOptions.standard:fontOptions[f];
   }
-  const model={fontKey,fontName,fontFamily,erasableStroke,erasableObject,eraseObject,eraseInk,letterSpace,lineSpace,resizeText,inkPath,inkBounds,moveInk,sameTarget,moveField,world,local,hit,glyphs,markPlacement,textTarget,angle,rotation,freeTextPosition,fieldAt,fieldLayout,dateParts};
+  const model={fontKey,fontName,fontFamily,erasableStroke,erasableObject,eraseObject,eraseInk,letterSpace,lineSpace,resizeText,inkPath,inkBounds,moveInk,sameTarget,moveField,world,local,hit,gapContains,gapBounds,gapPath,glyphs,markPlacement,textTarget,angle,rotation,freeTextPosition,fieldAt,fieldLayout,dateParts};
   if(typeof module!=='undefined'&&module.exports)module.exports=model;
   else root.SattoSample=model;
 })(typeof window==='undefined'?null:window);
